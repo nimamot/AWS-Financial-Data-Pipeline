@@ -1,0 +1,88 @@
+{
+  "1": {
+    "total_spending": 425.0,
+    "spending_by_category": {
+      "Shopping": 120.0,
+      "Food & Drink": 5.0,
+      "Travel": 300.0
+    },
+    "monthly_spending": {
+      "2024-10": 240.0,
+      "2024-11": 850.0
+    },
+    "historical_average": 110.83333333333333,
+    "high_value_transactions": [
+      {
+        "transaction_id": "T001",
+        "transaction_date": "2024-11-01",
+        "vendor": "Amazon",
+        "category": "Shopping",
+        "amount": 120.0,
+        "currency": "USD",
+        "recurring": false,
+        "transaction_type": "Purchase",
+        "description": "Electronics purchase",
+        "country": "USA"
+      },
+      {
+        "transaction_id": "T003",
+        "transaction_date": "2024-11-05",
+        "vendor": "Airbnb",
+        "category": "Travel",
+        "amount": 300.0,
+        "currency": "USD",
+        "recurring": false,
+        "transaction_type": "Booking",
+        "description": "Hotel booking",
+        "country": "Canada"
+      }
+    ],
+    "spending_by_category_chart": "user_1_spending_by_category.png",
+    "month_over_month_change": 610.0,
+    "flagged_transactions": [
+      {
+        "transaction_id": "T003",
+        "amount": 300.0,
+        "country": "Canada",
+        "risk_level": "High Risk"
+      }
+    ]
+  },
+  "2": {
+    "total_spending": 1235.0,
+    "spending_by_category": {
+      "Transport": 15.0,
+      "Entertainment": 20.0,
+      "Shopping": 1200.0
+    },
+    "monthly_spending": {
+      "2024-09": 517.0,
+      "2024-11": 2470.0
+    },
+    "historical_average": 292.0,
+    "high_value_transactions": [
+      {
+        "transaction_id": "T006",
+        "transaction_date": "2024-11-04",
+        "vendor": "Gucci",
+        "category": "Shopping",
+        "amount": 1200.0,
+        "currency": "CAD",
+        "recurring": false,
+        "transaction_type": "Purchase",
+        "description": "Luxury item",
+        "country": "France"
+      }
+    ],
+    "spending_by_category_chart": "user_2_spending_by_category.png",
+    "month_over_month_change": 1953.0,
+    "flagged_transactions": [
+      {
+        "transaction_id": "T006",
+        "amount": 1200.0,
+        "country": "France",
+        "risk_level": "High Risk"
+      }
+    ]
+  }
+}

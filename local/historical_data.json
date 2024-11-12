@@ -1,0 +1,78 @@
+{
+    "1": [
+        {
+            "transaction_id": "HT001",
+            "transaction_date": "2024-10-01",
+            "vendor": "Best Buy",
+            "category": "Shopping",
+            "amount": 80.00,
+            "currency": "USD",
+            "recurring": false,
+            "transaction_type": "Purchase",
+            "description": "Electronics purchase",
+            "country": "USA"
+        },
+        {
+            "transaction_id": "HT002",
+            "transaction_date": "2024-10-15",
+            "vendor": "McDonald's",
+            "category": "Food & Drink",
+            "amount": 10.00,
+            "currency": "USD",
+            "recurring": false,
+            "transaction_type": "Food",
+            "description": "Lunch",
+            "country": "USA"
+        },
+        {
+            "transaction_id": "HT003",
+            "transaction_date": "2024-10-20",
+            "vendor": "Apple Store",
+            "category": "Shopping",
+            "amount": 150.00,
+            "currency": "USD",
+            "recurring": false,
+            "transaction_type": "Purchase",
+            "description": "Gadget purchase",
+            "country": "USA"
+        }
+    ],
+    "2": [
+        {
+            "transaction_id": "HT004",
+            "transaction_date": "2024-09-05",
+            "vendor": "Tim Hortons",
+            "category": "Food & Drink",
+            "amount": 7.00,
+            "currency": "CAD",
+            "recurring": true,
+            "transaction_type": "Food",
+            "description": "Coffee",
+            "country": "Canada"
+        },
+        {
+            "transaction_id": "HT005",
+            "transaction_date": "2024-09-15",
+            "vendor": "Spotify",
+            "category": "Entertainment",
+            "amount": 10.00,
+            "currency": "CAD",
+            "recurring": true,
+            "transaction_type": "Subscription",
+            "description": "Music subscription",
+            "country": "Canada"
+        },
+        {
+            "transaction_id": "HT006",
+            "transaction_date": "2024-09-20",
+            "vendor": "Air Canada",
+            "category": "Travel",
+            "amount": 500.00,
+            "currency": "CAD",
+            "recurring": false,
+            "transaction_type": "Flight",
+            "description": "Flight ticket",
+            "country": "Canada"
+        }
+    ]
+}

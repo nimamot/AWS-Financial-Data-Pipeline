@@ -1,0 +1,7 @@
+user_id,transaction_id,transaction_date,vendor,category,amount,currency,recurring,transaction_type,description,country
+1,T001,2024-11-01,Amazon,Shopping,120.00,USD,No,Purchase,Electronics purchase,USA
+1,T002,2024-11-02,Starbucks,Food & Drink,5.00,USD,Yes,Purchase,Coffee,USA
+1,T003,2024-11-05,Airbnb,Travel,300.00,USD,No,Booking,Hotel booking,Canada
+2,T004,2024-11-01,Uber,Transport,15.00,CAD,No,Ride,Cab ride,Canada
+2,T005,2024-11-03,Netflix,Entertainment,20.00,CAD,Yes,Subscription,Monthly subscription,Canada
+2,T006,2024-11-04,Gucci,Shopping,1200.00,CAD,No,Purchase,Luxury item,France
