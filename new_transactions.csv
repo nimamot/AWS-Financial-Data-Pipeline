@@ -1,0 +1,4 @@
+UserId,YearMonth,transactions.id,transactions.date,transactions.vendor,transactions.category,transactions.amount,transactions.currency,transactions.recurring,transactions.type,transactions.location,transactions.description
+1,202411,123400,2024-11-10,Amazon,Shopping,150,USD,false,purchase,US-CA,Amazon order
+1,202411,123401,2024-11-11,Starbucks,Food & Beverages,5,USD,false,purchase,US-NY,Coffee
+1,202411,123402,2024-11-11,Delta Airlines,Travel,300,USD,false,purchase,CA-BC,Flight to Vancouver
