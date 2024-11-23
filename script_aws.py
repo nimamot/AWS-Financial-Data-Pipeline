@@ -4,6 +4,9 @@ import json
 from decimal import Decimal
 from collections import Counter
 from botocore.exceptions import ClientError
+import pycountry
+import matplotlib.pyplot as plt
+
 
 dynamodb = boto3.resource("dynamodb", region_name="ca-central-1")
 table = dynamodb.Table("cpsc436c-g9-statements")
@@ -21,22 +24,44 @@ def check_table_connection(table_name):
 check_table_connection("cpsc436c-g9-statements")
 print(table.attribute_definitions)
 
-def query_historical_data(user_id, year_month):
-    try:
-        # Query the DynamoDB table for the user's historical data
-        response = table.get_item(Key={"UserId": user_id, "YearMonth": year_month})
+# def query_historical_data(user_id, year_month):
+#     try:
+#         # Query the DynamoDB table for the user's historical data
+#         response = table.get_item(Key={"UserId": user_id, "YearMonth": year_month})
         
-        # Check if item is found
-        if "Item" in response:
-            historical_data = response["Item"]["transactions"]
-            return historical_data
+#         # Check if item is found
+#         if "Item" in response:
+#             historical_data = response["Item"]["transactions"]
+#             return historical_data
+#         else:
+#             print(f"No historical data found for UserId {user_id}, YearMonth {year_month}")
+#             return []
+#     except ClientError as e:
+#         error_message = e.response["Error"]["Message"]
+#         print(f"Error querying DynamoDB: {error_message}")
+#         return []
+
+def query_historical_data(user_id):
+    try:
+        # Query the DynamoDB table for all YearMonths for the given UserId
+        response = table.query(
+            KeyConditionExpression=boto3.dynamodb.conditions.Key("UserId").eq(user_id)
+        )
+        
+        # Check if items are found
+        if "Items" in response:
+            all_historical_data = []
+            for item in response["Items"]:
+                all_historical_data.extend(item["transactions"])  # Combine transactions from all months
+            return all_historical_data
         else:
-            print(f"No historical data found for UserId {user_id}, YearMonth {year_month}")
+            print(f"No historical data found for UserId {user_id}")
             return []
     except ClientError as e:
         error_message = e.response["Error"]["Message"]
         print(f"Error querying DynamoDB: {error_message}")
         return []
+    
 
 # Load new transaction data from CSV
 def load_new_transactions(csv_path):
@@ -82,7 +107,8 @@ def determine_home_country(historical_data):
     country_counts = {}
    
     for item in historical_data:
-        country = item["location"].split("-")[0]
+        country_code = item["location"][:2]
+        country = pycountry.countries.get(alpha_2=country_code).name
         if country in country_counts:
             country_counts[country] += 1
         else:
@@ -100,11 +126,11 @@ def determine_home_country(historical_data):
 
 def flag_risky_transactions(current_transactions, home_country, historical_average):
     flagged_transactions = []
-    for item in current_transactions:
-        
+    for item in current_transactions: 
         risk_level = None
-        
-        if item["location"].split("-")[0] != home_country:
+        loc = pycountry.countries.get(alpha_2=item["location"][:2]).name # loc of new transaction
+        if loc != home_country:
+            category = item["category"]
             if float(item["amount"]) > historical_average:
                 risk_level = "High Risk"
             else:
@@ -114,13 +140,13 @@ def flag_risky_transactions(current_transactions, home_country, historical_avera
             flagged_transactions.append({
                 "transaction_id": item["id"],
                 "amount": float(item["amount"]),
-                "location": item["location"].split("-")[0],
+                "avarage_amount": historical_average,
+                "location": loc,
                 "risk_level": risk_level,
                 "home_counter": home_country,
+                "categoty": category
             })
     return flagged_transactions
-
-
 
 
  ################# UPLOAD NEW STSTEMENT  TO DYNAMO ################     
@@ -140,10 +166,90 @@ def flag_risky_transactions(current_transactions, home_country, historical_avera
 # upload_to_dynamodb(transaction_rows)
  #################  ################     
 
+def spending_by_category(current_transactions):
+    spending_by_category = {}
+    for transaction in current_transactions:
+        category = transaction["category"]
+        amount = float(transaction["amount"])
+        if category in spending_by_category:
+            spending_by_category[category] += amount
+        else:
+            spending_by_category[category] = amount
+    return spending_by_category
+
+def generate_pie_chart(spending_by_category, user_id, year_month):
+    labels = spending_by_category.keys()
+    sizes = spending_by_category.values()
+
+    plt.figure(figsize=(6, 6))
+    plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
+    plt.title(f'Spending by Category for User {user_id} ({year_month})')
+
+    pie_chart_path = f'user_{user_id}_spending_by_category_{year_month}.png'
+    plt.savefig(pie_chart_path)
+    plt.close()
+    return pie_chart_path
+
+def identify_high_value_transactions(current_transactions, historical_average):
+    high_value_transactions = []
+    for item in current_transactions:
+        if float(item["amount"]) > historical_average:
+            high_value_transactions.append({
+                "transaction_id": item["id"],
+                "amount": float(item["amount"]), 
+                "vendor": item["vendor"],
+                "category": item["category"],
+                "date": item["date"],
+                "location": item["location"]
+            })
+    return high_value_transactions
+
+def analyze_recurring_transactions(current_transactions, historical_data, year):
+    recurring_transactions_summary = {}
+
+    all_transactions = current_transactions + historical_data
+
+    for transaction in all_transactions:
+        transaction_year = transaction["date"][:4] 
+        if transaction_year == year and transaction["recurring"]:
+            vendor = transaction["vendor"]
+            if vendor not in recurring_transactions_summary:
+                recurring_transactions_summary[vendor] = 0
+            recurring_transactions_summary[vendor] += float(transaction["amount"])
+
+    return recurring_transactions_summary
 
 
+def calculate_monthly_spending_trend(historical_data, current_transactions):
+    all_transactions = current_transactions + historical_data
 
+    monthly_spending = {}
+    for transaction in all_transactions:
+        year_month = transaction["date"][:7].replace("-", "") 
+        if year_month not in monthly_spending:
+            monthly_spending[year_month] = 0
+        monthly_spending[year_month] += float(transaction["amount"])
 
+    # Sort spending by month 
+    sorted_months = sorted(monthly_spending.keys(), reverse=True)
+
+    # the trend over the last 3 months
+    if len(sorted_months) >= 3:
+        last_months = sorted_months[:3]
+        trend_values = [monthly_spending[month] for month in last_months]
+        if trend_values[0] > trend_values[1] > trend_values[2]:
+            trend = "Up"
+        elif trend_values[0] < trend_values[1] < trend_values[2]:
+            trend = "Down"
+        else:
+            trend = "Stable"
+    else:
+        trend = "Not enough data"
+
+    return {
+        "MonthlySpending": monthly_spending,
+        "Trend": trend
+    }
 def main():
     new_transactions_path = "new_transactions.csv"
 
@@ -151,20 +257,43 @@ def main():
 
     for (user_id, year_month), current_transactions in new_data.items():
         previous_year_month = str(int(year_month) - 1)  # Adjust year-month
-        historical_data = query_historical_data(user_id, previous_year_month)
+        # historical_data = query_historical_data(user_id, previous_year_month)
+        historical_data = query_historical_data(user_id)
+
 
         home_country = determine_home_country(historical_data)
-
         historical_average = calculate_historical_average(historical_data)
 
         flagged_transactions = flag_risky_transactions(current_transactions, home_country, historical_average)
 
-        print(f"Flagged transactions for UserId {user_id}:")
-        output_file = f"flagged_transactions_user_{user_id}.json"
-        with open(output_file, "w") as file:
-            json.dump(flagged_transactions, file, indent=2)
-        print(f"Flagged transactions saved to {output_file}")
+        spending_by_cat = spending_by_category(current_transactions)
 
+        pie_chart_path = generate_pie_chart(spending_by_cat, user_id, year_month)
+        
+        high_value_transaction = identify_high_value_transactions(current_transactions, historical_average)
+       
+        current_year = year_month[:4]
+        recurring_transactions_summary = analyze_recurring_transactions(current_transactions, historical_data, current_year)
+        monthly_spending_trend = calculate_monthly_spending_trend(historical_data, current_transactions)
+        report = {
+            "UserId": user_id,
+            "YearMonth": year_month,
+            "PieChartPath": pie_chart_path,
+            "FlaggedTransactions": flagged_transactions,
+            "SpendingByCategory" : spending_by_cat,
+            "HighValueTransaction": high_value_transaction,
+            "RecurringTransactionsYearToDate": recurring_transactions_summary,
+            "MonthlySpendingTrend": monthly_spending_trend
+        }
+
+        report_file = f"user_{user_id}_report_{year_month}.json"
+        with open(report_file, "w") as file:
+            json.dump(report, file, indent=2)
+        print(f"Monthly report saved to {report_file}")
+
+
+        ## TODO: upload the new statement to S3 bucket
+        ## TODO : delete the csv file added by the bank
 
 
 
