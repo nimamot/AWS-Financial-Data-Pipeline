@@ -1,5 +1,6 @@
 import csv
 import boto3
+import os
 import json
 from decimal import Decimal
 from collections import Counter
@@ -7,7 +8,7 @@ from botocore.exceptions import ClientError
 import pycountry
 import matplotlib.pyplot as plt
 
-
+s3_client = boto3.client('s3')
 dynamodb = boto3.resource("dynamodb", region_name="ca-central-1")
 table = dynamodb.Table("cpsc436c-g9-statements")
 
@@ -63,7 +64,6 @@ def query_historical_data(user_id):
         return []
     
 
-# Load new transaction data from CSV
 def load_new_transactions(csv_path):
     grouped_items = {}
     try:
@@ -177,7 +177,10 @@ def spending_by_category(current_transactions):
             spending_by_category[category] = amount
     return spending_by_category
 
+
 def generate_pie_chart(spending_by_category, user_id, year_month):
+    os.environ["MPLCONFIGDIR"] = "/tmp"
+
     labels = spending_by_category.keys()
     sizes = spending_by_category.values()
 
@@ -185,7 +188,7 @@ def generate_pie_chart(spending_by_category, user_id, year_month):
     plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
     plt.title(f'Spending by Category for User {user_id} ({year_month})')
 
-    pie_chart_path = f'user_{user_id}_spending_by_category_{year_month}.png'
+    pie_chart_path = f"/tmp/user_{user_id}_spending_by_category_{year_month}.png" 
     plt.savefig(pie_chart_path)
     plt.close()
     return pie_chart_path
@@ -233,7 +236,6 @@ def calculate_monthly_spending_trend(historical_data, current_transactions):
     # Sort spending by month 
     sorted_months = sorted(monthly_spending.keys(), reverse=True)
 
-    # the trend over the last 3 months
     if len(sorted_months) >= 3:
         last_months = sorted_months[:3]
         trend_values = [monthly_spending[month] for month in last_months]
@@ -253,70 +255,140 @@ def calculate_monthly_spending_trend(historical_data, current_transactions):
 
 def upload_to_s3(file_path, bucket_name, key):
     try:
-        s3_client.upload_file(file_path, bucket_name, key)
+        s3_client.upload_file(file_path, "cpsc436c-g9-customer-reports", key)
+
         print(f"Uploaded {file_path} to {bucket_name}/{key}")
     except ClientError as e:
         print(f"Error uploading to S3: {e.response['Error']['Message']}")
 
 
+# def lambda_handler(event, context):
+#     try:
+#         # Get bucket name and file key from the S3 event
+#         ingest_bucket = event['Records'][0]['s3']['bucket']['name']
+#         file_key = event['Records'][0]['s3']['object']['key']
+
+#         # Download the uploaded file to /tmp
+#         local_csv_path = f"/tmp/{file_key.split('/')[-1]}"
+#         s3_client.download_file(ingest_bucket, file_key, local_csv_path)
+
+#         new_data = load_new_transactions(local_csv_path)
+
+#         for (user_id, year_month), current_transactions in new_data.items():
+#             previous_year_month = str(int(year_month) - 1)  # Adjust year-month
+#             # historical_data = query_historical_data(user_id, previous_year_month)
+#             historical_data = query_historical_data(user_id)
+
+
+#             home_country = determine_home_country(historical_data)
+#             historical_average = calculate_historical_average(historical_data)
+
+#             flagged_transactions = flag_risky_transactions(current_transactions, home_country, historical_average)
+
+#             spending_by_cat = spending_by_category(current_transactions)
+
+#             pie_chart_path = generate_pie_chart(spending_by_cat, user_id, year_month)
+            
+#             high_value_transaction = identify_high_value_transactions(current_transactions, historical_average)
+        
+#             current_year = year_month[:4]
+#             recurring_transactions_summary = analyze_recurring_transactions(current_transactions, historical_data, current_year)
+#             monthly_spending_trend = calculate_monthly_spending_trend(historical_data, current_transactions)
+#             report = {
+#                 "UserId": user_id,
+#                 "YearMonth": year_month,
+#                 "PieChartPath": pie_chart_path,
+#                 "FlaggedTransactions": flagged_transactions,
+#                 "SpendingByCategory" : spending_by_cat,
+#                 "HighValueTransaction": high_value_transaction,
+#                 "RecurringTransactionsYearToDate": recurring_transactions_summary,
+#                 "MonthlySpending_Trend": monthly_spending_trend
+#             }
+
+#             # Save report as JSON
+#             report_file = f"/tmp/user_{user_id}_report_{year_month}.json"
+#             with open(report_file, "w") as file:
+#                 json.dump(report, file, indent=2)
+
+#             # Upload JSON report to the reports S3 bucket
+#             report_s3_key = f"reports/user_{user_id}_report_{year_month}.json"
+#             upload_to_s3(report_file, "cpsc436c-g9-customer-reports", report_s3_key)
+
+#             # Upload the pie chart image to the reports S3 bucket
+#             pie_chart_s3_key = f"reports/user_{user_id}_spending_by_category_{year_month}.png"
+#             upload_to_s3(pie_chart_path, "cpsc436c-g9-customer-reports", pie_chart_s3_key)
+
+#             ## TODO: upload the new statement to S3 bucket
+#             ## TODO : delete the csv file added by the bank
+#             return {"statusCode": 200, "body": "Hello, World!"}
+#     except Exception as e:
+#         print(f"Error in lambda_handler: {str(e)}")
+
+
 def lambda_handler(event, context):
     try:
-        # Get bucket name and file key from the S3 event
         ingest_bucket = event['Records'][0]['s3']['bucket']['name']
         file_key = event['Records'][0]['s3']['object']['key']
 
-        # Download the uploaded file to /tmp
+
         local_csv_path = f"/tmp/{file_key.split('/')[-1]}"
         s3_client.download_file(ingest_bucket, file_key, local_csv_path)
+
 
         new_data = load_new_transactions(local_csv_path)
 
         for (user_id, year_month), current_transactions in new_data.items():
-            previous_year_month = str(int(year_month) - 1)  # Adjust year-month
-            # historical_data = query_historical_data(user_id, previous_year_month)
-            historical_data = query_historical_data(user_id)
 
+            historical_data = query_historical_data(user_id)
 
             home_country = determine_home_country(historical_data)
             historical_average = calculate_historical_average(historical_data)
-
             flagged_transactions = flag_risky_transactions(current_transactions, home_country, historical_average)
-
             spending_by_cat = spending_by_category(current_transactions)
-
             pie_chart_path = generate_pie_chart(spending_by_cat, user_id, year_month)
-            
             high_value_transaction = identify_high_value_transactions(current_transactions, historical_average)
-        
             current_year = year_month[:4]
-            recurring_transactions_summary = analyze_recurring_transactions(current_transactions, historical_data, current_year)
+            recurring_transactions_summary = analyze_recurring_transactions(
+                current_transactions, historical_data, current_year
+            )
             monthly_spending_trend = calculate_monthly_spending_trend(historical_data, current_transactions)
+
+
             report = {
                 "UserId": user_id,
                 "YearMonth": year_month,
                 "PieChartPath": pie_chart_path,
                 "FlaggedTransactions": flagged_transactions,
-                "SpendingByCategory" : spending_by_cat,
+                "SpendingByCategory": spending_by_cat,
                 "HighValueTransaction": high_value_transaction,
                 "RecurringTransactionsYearToDate": recurring_transactions_summary,
-                "MonthlySpending_Trend": monthly_spending_trend
+                "MonthlySpending_Trend": monthly_spending_trend,
             }
 
-            # Save report as JSON
+
             report_file = f"/tmp/user_{user_id}_report_{year_month}.json"
             with open(report_file, "w") as file:
                 json.dump(report, file, indent=2)
+            # s3_client.upload_file(report_file, "cpsc436c-g9-customer-reports", "test")
 
-            # Upload JSON report to the reports S3 bucket
+            # dummy_file = "/tmp/dummy.json"
+            # with open(dummy_file, "w") as file:
+            #     file.write('{"test": "data"}')
+            # print(f"Dummy file created: {os.path.exists(dummy_file)}")
+            # s3_client.upload_file(dummy_file, "cpsc436c-g9-customer-reports", "test-dummy")
+            # print("Upload complete")
+
+
             report_s3_key = f"reports/user_{user_id}_report_{year_month}.json"
-            upload_to_s3(report_file, "cpsc436c-g9-customer-reports", report_s3_key)
-
-            # Upload the pie chart image to the reports S3 bucket
             pie_chart_s3_key = f"reports/user_{user_id}_spending_by_category_{year_month}.png"
+            upload_to_s3(report_file, "cpsc436c-g9-customer-reports", report_s3_key)
             upload_to_s3(pie_chart_path, "cpsc436c-g9-customer-reports", pie_chart_s3_key)
 
-            ## TODO: upload the new statement to S3 bucket
-            ## TODO : delete the csv file added by the bank
+        return {"statusCode": 200, "body": "Processing complete!"}
+        
     except Exception as e:
         print(f"Error in lambda_handler: {str(e)}")
-
+        return {"statusCode": 500, "body": "An error occurred."}
+    
+    ### TODO: delete the statements from the ingest bucket 
+    ## TODO: push the new data from the new statements to the table

@@ -1,15 +1,14 @@
-# Base Python image compatible with AWS Lambda
-FROM public.ecr.aws/lambda/python:3.9
+FROM public.ecr.aws/lambda/python:3.12
 
-# Set the working directory
-WORKDIR /app
+# Copy requirements.txt
+COPY requirements.txt ${LAMBDA_TASK_ROOT}
 
-# Copy the requirements file and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install the specified packages
+RUN pip install -r requirements.txt
 
-# Copy the rest of the application code into the container
-COPY . .
+# Copy the Lambda function code
+COPY lambda_function.py ${LAMBDA_TASK_ROOT}
 
-# Set the CMD to your Lambda handler function
+
+# Set the CMD to point to the Lambda handler
 CMD ["lambda_function.lambda_handler"]
