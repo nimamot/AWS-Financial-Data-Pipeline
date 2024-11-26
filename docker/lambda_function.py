@@ -25,23 +25,6 @@ def check_table_connection(table_name):
 check_table_connection("cpsc436c-g9-statements")
 print(table.attribute_definitions)
 
-# def query_historical_data(user_id, year_month):
-#     try:
-#         # Query the DynamoDB table for the user's historical data
-#         response = table.get_item(Key={"UserId": user_id, "YearMonth": year_month})
-        
-#         # Check if item is found
-#         if "Item" in response:
-#             historical_data = response["Item"]["transactions"]
-#             return historical_data
-#         else:
-#             print(f"No historical data found for UserId {user_id}, YearMonth {year_month}")
-#             return []
-#     except ClientError as e:
-#         error_message = e.response["Error"]["Message"]
-#         print(f"Error querying DynamoDB: {error_message}")
-#         return []
-
 def query_historical_data(user_id):
     try:
         # Query the DynamoDB table for all YearMonths for the given UserId
@@ -149,22 +132,6 @@ def flag_risky_transactions(current_transactions, home_country, historical_avera
     return flagged_transactions
 
 
- ################# UPLOAD NEW STSTEMENT  TO DYNAMO ################     
-# def upload_to_dynamodb(items):
-#     try:
-#         print("Trying upload")
-#         for item in items:
-#             response = table.put_item(Item=item)
-#         print("Successfully inserted all rows")
-        
-#     except ClientError as e:
-#         print(f"Error inserting item into DynamoDB: {e.response['Error']['Message']}")
-#     except Exception as e:
-#         print(f"An unexpected error occurred: {str(e)}")
-        
-# transaction_rows = process_csv('user1data.csv')
-# upload_to_dynamodb(transaction_rows)
- #################  ################     
 
 def spending_by_category(current_transactions):
     spending_by_category = {}
@@ -262,68 +229,6 @@ def upload_to_s3(file_path, bucket_name, key):
         print(f"Error uploading to S3: {e.response['Error']['Message']}")
 
 
-# def lambda_handler(event, context):
-#     try:
-#         # Get bucket name and file key from the S3 event
-#         ingest_bucket = event['Records'][0]['s3']['bucket']['name']
-#         file_key = event['Records'][0]['s3']['object']['key']
-
-#         # Download the uploaded file to /tmp
-#         local_csv_path = f"/tmp/{file_key.split('/')[-1]}"
-#         s3_client.download_file(ingest_bucket, file_key, local_csv_path)
-
-#         new_data = load_new_transactions(local_csv_path)
-
-#         for (user_id, year_month), current_transactions in new_data.items():
-#             previous_year_month = str(int(year_month) - 1)  # Adjust year-month
-#             # historical_data = query_historical_data(user_id, previous_year_month)
-#             historical_data = query_historical_data(user_id)
-
-
-#             home_country = determine_home_country(historical_data)
-#             historical_average = calculate_historical_average(historical_data)
-
-#             flagged_transactions = flag_risky_transactions(current_transactions, home_country, historical_average)
-
-#             spending_by_cat = spending_by_category(current_transactions)
-
-#             pie_chart_path = generate_pie_chart(spending_by_cat, user_id, year_month)
-            
-#             high_value_transaction = identify_high_value_transactions(current_transactions, historical_average)
-        
-#             current_year = year_month[:4]
-#             recurring_transactions_summary = analyze_recurring_transactions(current_transactions, historical_data, current_year)
-#             monthly_spending_trend = calculate_monthly_spending_trend(historical_data, current_transactions)
-#             report = {
-#                 "UserId": user_id,
-#                 "YearMonth": year_month,
-#                 "PieChartPath": pie_chart_path,
-#                 "FlaggedTransactions": flagged_transactions,
-#                 "SpendingByCategory" : spending_by_cat,
-#                 "HighValueTransaction": high_value_transaction,
-#                 "RecurringTransactionsYearToDate": recurring_transactions_summary,
-#                 "MonthlySpending_Trend": monthly_spending_trend
-#             }
-
-#             # Save report as JSON
-#             report_file = f"/tmp/user_{user_id}_report_{year_month}.json"
-#             with open(report_file, "w") as file:
-#                 json.dump(report, file, indent=2)
-
-#             # Upload JSON report to the reports S3 bucket
-#             report_s3_key = f"reports/user_{user_id}_report_{year_month}.json"
-#             upload_to_s3(report_file, "cpsc436c-g9-customer-reports", report_s3_key)
-
-#             # Upload the pie chart image to the reports S3 bucket
-#             pie_chart_s3_key = f"reports/user_{user_id}_spending_by_category_{year_month}.png"
-#             upload_to_s3(pie_chart_path, "cpsc436c-g9-customer-reports", pie_chart_s3_key)
-
-#             ## TODO: upload the new statement to S3 bucket
-#             ## TODO : delete the csv file added by the bank
-#             return {"statusCode": 200, "body": "Hello, World!"}
-#     except Exception as e:
-#         print(f"Error in lambda_handler: {str(e)}")
-
 
 def lambda_handler(event, context):
     try:
@@ -369,15 +274,6 @@ def lambda_handler(event, context):
             report_file = f"/tmp/user_{user_id}_report_{year_month}.json"
             with open(report_file, "w") as file:
                 json.dump(report, file, indent=2)
-            # s3_client.upload_file(report_file, "cpsc436c-g9-customer-reports", "test")
-
-            # dummy_file = "/tmp/dummy.json"
-            # with open(dummy_file, "w") as file:
-            #     file.write('{"test": "data"}')
-            # print(f"Dummy file created: {os.path.exists(dummy_file)}")
-            # s3_client.upload_file(dummy_file, "cpsc436c-g9-customer-reports", "test-dummy")
-            # print("Upload complete")
-
 
             report_s3_key = f"reports/user_{user_id}_report_{year_month}.json"
             pie_chart_s3_key = f"reports/user_{user_id}_spending_by_category_{year_month}.png"
@@ -390,5 +286,23 @@ def lambda_handler(event, context):
         print(f"Error in lambda_handler: {str(e)}")
         return {"statusCode": 500, "body": "An error occurred."}
     
-    ### TODO: delete the statements from the ingest bucket 
-    ## TODO: push the new data from the new statements to the table
+    
+    
+### TODO: delete the statements from the ingest bucket 
+## TODO: push the new data from the new statements to the table
+ ################# UPLOAD NEW STSTEMENT  TO DYNAMO <Has to be modified>################     
+# def upload_to_dynamodb(items):
+#     try:
+#         print("Trying upload")
+#         for item in items:
+#             response = table.put_item(Item=item)
+#         print("Successfully inserted all rows")
+        
+#     except ClientError as e:
+#         print(f"Error inserting item into DynamoDB: {e.response['Error']['Message']}")
+#     except Exception as e:
+#         print(f"An unexpected error occurred: {str(e)}")
+        
+# transaction_rows = process_csv('user1data.csv')
+# upload_to_dynamodb(transaction_rows)
+ #################  ################     
