@@ -7,6 +7,15 @@ from collections import Counter
 from botocore.exceptions import ClientError
 import pycountry
 import matplotlib.pyplot as plt
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+from fpdf import FPDF
+import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib.cm as cm
+
 
 s3_client = boto3.client('s3')
 dynamodb = boto3.resource("dynamodb", region_name="ca-central-1")
@@ -45,7 +54,6 @@ def query_historical_data(user_id):
         error_message = e.response["Error"]["Message"]
         print(f"Error querying DynamoDB: {error_message}")
         return []
-    
 
 def load_new_transactions(csv_path):
     grouped_items = {}
@@ -80,11 +88,10 @@ def load_new_transactions(csv_path):
 def calculate_historical_average(historical_data):
     if historical_data:
         total_spending = sum(float(item["amount"]) for item in historical_data)
-        average_spending = total_spending / len(historical_data)
+        average_spending = round((total_spending / len(historical_data)),2)
         return average_spending
     else:
         return 0
-
 
 def determine_home_country(historical_data):
     country_counts = {}
@@ -127,36 +134,90 @@ def flag_risky_transactions(current_transactions, home_country, historical_avera
                 "location": loc,
                 "risk_level": risk_level,
                 "home_counter": home_country,
-                "categoty": category
+                "categoty": category,
+                'vendor': item["vendor"],
+                'date': item["date"]
             })
     return flagged_transactions
-
-
 
 def spending_by_category(current_transactions):
     spending_by_category = {}
     for transaction in current_transactions:
         category = transaction["category"]
-        amount = float(transaction["amount"])
+        amount = round(float(transaction["amount"]), 2)
         if category in spending_by_category:
-            spending_by_category[category] += amount
+            spending_by_category[category] += round(amount, 2)
         else:
-            spending_by_category[category] = amount
+            spending_by_category[category] = round(amount, 2)
     return spending_by_category
 
+def get_previous_month_data(all_transactions, current_year_month):
+    year = int(current_year_month[:4])
+    month = int(current_year_month[4:])
 
-def generate_pie_chart(spending_by_category, user_id, year_month):
+    if month == 1:  # January -> Go to December of the previous year
+        previous_year = year - 1
+        previous_month = 12
+    else:
+        previous_year = year
+        previous_month = month - 1
+
+    previous_year_month = f"{previous_year}{previous_month:02d}"
+
+    # Filter transactions 
+    previous_month_transactions = [
+        transaction for transaction in all_transactions
+        if transaction["date"][:7].replace("-", "") == previous_year_month
+    ]
+
+    return spending_by_category(previous_month_transactions)
+
+def generate_pie_chart(spending_by_category_current, spending_by_category_previous, user_id, year_month):
+
+
     os.environ["MPLCONFIGDIR"] = "/tmp"
 
-    labels = spending_by_category.keys()
-    sizes = spending_by_category.values()
+    labels_current = list(spending_by_category_current.keys())
+    sizes_current = list(spending_by_category_current.values())
 
-    plt.figure(figsize=(6, 6))
-    plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
-    plt.title(f'Spending by Category for User {user_id} ({year_month})')
+    labels_previous = list(spending_by_category_previous.keys())
+    sizes_previous = list(spending_by_category_previous.values())
 
-    pie_chart_path = f"/tmp/user_{user_id}_spending_by_category_{year_month}.png" 
-    plt.savefig(pie_chart_path)
+    colors_current = cm.get_cmap("tab20c")(range(len(sizes_current)))
+    colors_previous = cm.get_cmap("tab20c")(range(len(sizes_previous)))
+
+    fig, axes = plt.subplots(1, 2, figsize=(16, 8))  
+
+    axes[0].pie(
+        sizes_current,
+        labels=labels_current,
+        autopct='%1.1f%%',
+        startangle=140,
+        colors=colors_current,
+        textprops={'fontsize': 10},
+        wedgeprops={'edgecolor': 'white'},
+        pctdistance=0.85,
+        labeldistance=1.1
+    )
+    axes[0].set_title(f'Current Month: {year_month}', fontsize=14, pad=20)
+
+    axes[1].pie(
+        sizes_previous,
+        labels=labels_previous,
+        autopct='%1.1f%%',
+        startangle=140,
+        colors=colors_previous,
+        textprops={'fontsize': 10},
+        wedgeprops={'edgecolor': 'white'},
+        pctdistance=0.85,
+        labeldistance=1.1
+    )
+    previous_month = str(int(year_month) - 1)  # Calculate the previous month
+    axes[1].set_title(f'Previous Month: {previous_month}', fontsize=14, pad=20)
+
+    plt.tight_layout()
+    pie_chart_path = f"/tmp/user_{user_id}_spending_by_category_{year_month}_comparison.png"
+    plt.savefig(pie_chart_path, bbox_inches='tight')
     plt.close()
     return pie_chart_path
 
@@ -166,7 +227,7 @@ def identify_high_value_transactions(current_transactions, historical_average):
         if float(item["amount"]) > historical_average:
             high_value_transactions.append({
                 "transaction_id": item["id"],
-                "amount": float(item["amount"]), 
+                "amount": round(float(item["amount"]), 2), 
                 "vendor": item["vendor"],
                 "category": item["category"],
                 "date": item["date"],
@@ -185,10 +246,9 @@ def analyze_recurring_transactions(current_transactions, historical_data, year):
             vendor = transaction["vendor"]
             if vendor not in recurring_transactions_summary:
                 recurring_transactions_summary[vendor] = 0
-            recurring_transactions_summary[vendor] += float(transaction["amount"])
+            recurring_transactions_summary[vendor] += round(float(transaction["amount"]), 2)
 
     return recurring_transactions_summary
-
 
 def calculate_monthly_spending_trend(historical_data, current_transactions):
     all_transactions = current_transactions + historical_data
@@ -198,7 +258,7 @@ def calculate_monthly_spending_trend(historical_data, current_transactions):
         year_month = transaction["date"][:7].replace("-", "") 
         if year_month not in monthly_spending:
             monthly_spending[year_month] = 0
-        monthly_spending[year_month] += float(transaction["amount"])
+        monthly_spending[year_month] += round(float(transaction["amount"]), 2)
 
     # Sort spending by month 
     sorted_months = sorted(monthly_spending.keys(), reverse=True)
@@ -219,6 +279,155 @@ def calculate_monthly_spending_trend(historical_data, current_transactions):
         "MonthlySpending": monthly_spending,
         "Trend": trend
     }
+
+def generate_bar_line_chart(monthly_spending, user_id, year_month):
+
+    os.environ["MPLCONFIGDIR"] = "/tmp"  
+
+    sorted_months = sorted(monthly_spending.keys())
+    spending_values = [monthly_spending[month] for month in sorted_months]
+
+    plt.figure(figsize=(8, 5))
+    
+    plt.bar(sorted_months, spending_values, color='lightblue', alpha=0.7, label="Monthly Spending")
+    
+    plt.plot(sorted_months, spending_values, marker='o', color='b', label="Spending Trend")
+
+    plt.xlabel("YearMonth")
+    plt.ylabel("Spending ($)")
+    plt.title(f"Monthly Spending Trend for User {user_id}")
+    plt.xticks(rotation=45)
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.legend()
+
+    trend_chart_path = f"/tmp/user_{user_id}_spending_trend_{year_month}.png"
+    plt.tight_layout()
+    plt.savefig(trend_chart_path)
+    plt.close()
+
+    return trend_chart_path
+
+def get_top_high_value_transactions(high_value_transaction, limit=3):
+
+    sorted_transactions = sorted(high_value_transaction, key=lambda x: x['amount'], reverse=True)
+    return sorted_transactions[:limit]
+
+def generate_pdf_report(user_id, year_month, pie_chart_path, trend_chart_path, recurring_graph_path, high_value_transaction, flagged_transactions):
+    pdf = FPDF(orientation='P', unit='mm', format='A4')
+    pdf.add_page()
+
+    # Title
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(0, 10, f"Monthly Report for User {user_id} ({year_month})", ln=True, align='C')
+
+    # Spending Breakdown
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, "Spending Breakdown", ln=True)
+    pdf.image(pie_chart_path, x=40, w=130)
+
+    # Monthly Spending Trend
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, "Monthly Spending Trend", ln=True)
+    pdf.image(trend_chart_path, x=40, w=130)
+
+    # Recurring Transactions Analysis
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, "Recurring Transactions Analysis", ln=True)
+    pdf.image(recurring_graph_path, x=40, w=130)
+
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, "High-Value Transactions", ln=True)
+
+    pdf.set_font('Arial', '', 12)
+    top_transactions = get_top_high_value_transactions(high_value_transaction)
+    for transaction in top_transactions:
+        pdf.cell(50, 10, transaction["vendor"], 1, 0, 'C')
+        pdf.cell(40, 10, f"${transaction['amount']:.2f}", 1, 0, 'C')
+        pdf.cell(50, 10, transaction["date"], 1, 1, 'C') 
+
+    ## flagged transactions 
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, "Suspicious Transactions", ln=True)
+    pdf.set_font('Arial', '', 12)
+    for transaction in flagged_transactions:
+        pdf.cell(50, 10, transaction["vendor"], 1, 0, 'C')
+        pdf.cell(40, 10, f"${transaction['amount']:.2f}", 1, 0, 'C')
+        pdf.cell(50, 10, transaction["date"], 1, 0, 'C')
+        pdf.cell(30, 10, transaction["risk_level"], 1, 0, 'C')
+        pdf.cell(30, 10, transaction["location"], 1, 1, 'C')  
+
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, "Detailed Analysis of Suspicious Transactions", ln=True)
+
+    pdf.set_font('Arial', '', 12)
+    for transaction in flagged_transactions:
+        details = f"Transaction of ${transaction['amount']:.2f} at {transaction['vendor']} on {transaction['date']} was flagged as {transaction['risk_level']} because:"
+        pdf.multi_cell(0, 10, details)
+
+        reasons = []
+        if transaction.get("location") != transaction.get("home_counter"):
+            reasons.append(
+                f"it was performed in {transaction['location']}, whereas most transactions are done in {transaction['home_counter']}."
+            )
+        if transaction.get("amount") > transaction.get("avarage_amount", 0):
+            reasons.append(
+                f"the amount of ${transaction['amount']:.2f} exceeds your historical average spending of ${transaction['avarage_amount']:.2f}."
+            )
+
+        if reasons:
+            for reason in reasons:
+                pdf.multi_cell(0, 10, f"- {reason}")
+        else:
+            pdf.multi_cell(0, 10, "- No specific anomaly detected.")
+
+        pdf.cell(0, 5, "", ln=True)
+
+    pdf_path = f"/tmp/user_{user_id}_report_{year_month}.pdf"
+    pdf.output(pdf_path)
+    return pdf_path
+def generate_recurring_transactions_graph(recurring_data, user_id, year_month):
+    vendors = list(recurring_data.keys())
+    current_amounts = [round(value, 2) for value in recurring_data.values()]
+
+    current_month = int(year_month[4:])  
+    months_elapsed = current_month
+    months_remaining = 12 - months_elapsed
+
+    predicted_amounts = [
+        round(amount + (amount / months_elapsed) * months_remaining, 2)
+        for amount in current_amounts
+    ]
+
+    x = np.arange(len(vendors))  
+    bar_width = 0.6
+
+    plt.figure(figsize=(10, 6))
+    bars1 = plt.bar(x, current_amounts, bar_width, color='teal', label='Current Spending')
+    bars2 = plt.bar(x, predicted_amounts, bar_width, alpha=0.4, color='teal', label='Predicted Total Spending')
+
+    plt.xticks(x, vendors, rotation=45, ha='right', fontsize=10)
+    plt.xlabel('Recurring Transactions (Vendors)', fontsize=12)
+    plt.ylabel('Amount Spent ($)', fontsize=12)
+    plt.title(f'Recurring Transactions for User {user_id} ({year_month})', fontsize=14)
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.legend()
+
+    for i, bar1 in enumerate(bars1):
+        plt.text(
+            bar1.get_x() + bar1.get_width() / 2,
+            bar1.get_height() + 5,
+            f"${current_amounts[i]}",
+            ha='center',
+            va='bottom',
+            fontsize=9,
+            color='black',
+        )
+
+    recurring_graph_path = f"/tmp/user_{user_id}_recurring_transactions_{year_month}.png"
+    plt.tight_layout()
+    plt.savefig(recurring_graph_path)
+    plt.close()
+    return recurring_graph_path
 
 def upload_to_s3(file_path, bucket_name, key):
     try:
@@ -245,40 +454,53 @@ def lambda_handler(event, context):
         for (user_id, year_month), current_transactions in new_data.items():
 
             historical_data = query_historical_data(user_id)
-
+            all_transactions = historical_data + current_transactions
             home_country = determine_home_country(historical_data)
             historical_average = calculate_historical_average(historical_data)
             flagged_transactions = flag_risky_transactions(current_transactions, home_country, historical_average)
             spending_by_cat = spending_by_category(current_transactions)
-            pie_chart_path = generate_pie_chart(spending_by_cat, user_id, year_month)
+            spending_by_cat_prev = get_previous_month_data(all_transactions, year_month)
+            pie_chart_path = generate_pie_chart(spending_by_cat, spending_by_cat_prev, user_id, year_month)
             high_value_transaction = identify_high_value_transactions(current_transactions, historical_average)
             current_year = year_month[:4]
             recurring_transactions_summary = analyze_recurring_transactions(
                 current_transactions, historical_data, current_year
             )
             monthly_spending_trend = calculate_monthly_spending_trend(historical_data, current_transactions)
-
-
+            trend_chart_path = generate_bar_line_chart(monthly_spending_trend["MonthlySpending"], user_id, year_month)
             report = {
                 "UserId": user_id,
                 "YearMonth": year_month,
                 "PieChartPath": pie_chart_path,
+                 "TrendChartPath": trend_chart_path,
                 "FlaggedTransactions": flagged_transactions,
                 "SpendingByCategory": spending_by_cat,
                 "HighValueTransaction": high_value_transaction,
                 "RecurringTransactionsYearToDate": recurring_transactions_summary,
-                "MonthlySpending_Trend": monthly_spending_trend,
+                "MonthlySpending_Trend": monthly_spending_trend,     
             }
-
+            recurring_graph_path = generate_recurring_transactions_graph(report["RecurringTransactionsYearToDate"], user_id, year_month)
 
             report_file = f"/tmp/user_{user_id}_report_{year_month}.json"
             with open(report_file, "w") as file:
                 json.dump(report, file, indent=2)
 
+
+ 
             report_s3_key = f"reports/user_{user_id}_report_{year_month}.json"
-            pie_chart_s3_key = f"reports/user_{user_id}_spending_by_category_{year_month}.png"
+            # pie_chart_s3_key = f"reports/user_{user_id}_spending_by_category_{year_month}.png"
+
+            pdf_s3_key = f"reports/user_{user_id}_report_{year_month}.pdf"
+            # trend_chart_s3_key = f"reports/user_{user_id}_spending_trend_{year_month}.png"
+
+            pdf_path = generate_pdf_report(user_id, year_month, pie_chart_path, trend_chart_path, recurring_graph_path, high_value_transaction, flagged_transactions)
+            
+            
             upload_to_s3(report_file, "cpsc436c-g9-customer-reports", report_s3_key)
-            upload_to_s3(pie_chart_path, "cpsc436c-g9-customer-reports", pie_chart_s3_key)
+            # upload_to_s3(pie_chart_path, "cpsc436c-g9-customer-reports", pie_chart_s3_key)
+            upload_to_s3(pdf_path, "cpsc436c-g9-customer-reports", pdf_s3_key)
+            # upload_to_s3(trend_chart_path, "cpsc436c-g9-customer-reports", trend_chart_s3_key)
+
 
         return {"statusCode": 200, "body": "Processing complete!"}
         
@@ -306,3 +528,4 @@ def lambda_handler(event, context):
 # transaction_rows = process_csv('user1data.csv')
 # upload_to_dynamodb(transaction_rows)
  #################  ################     
+
