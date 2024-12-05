@@ -437,7 +437,48 @@ def upload_to_s3(file_path, bucket_name, key):
     except ClientError as e:
         print(f"Error uploading to S3: {e.response['Error']['Message']}")
 
+### used for uploading the new statements to DynamoDB
+def process_csv(csv_path):
+    grouped_items = {}
+    try:
+        with open(csv_path, mode="r", encoding="utf-8-sig") as file:
+            csv_reader = csv.DictReader(file)
 
+            # Group transactions by UserId and YearMonth
+            for row in csv_reader:
+                transaction = {
+                    "amount": Decimal(row["transactions.amount"]),
+                    "category": row["transactions.category"],
+                    "currency": row["transactions.currency"],
+                    "date": row["transactions.date"],
+                    "description": row["transactions.description"],
+                    "id": row["transactions.id"],
+                    "location": row["transactions.location"],
+                    "recurring": row["transactions.recurring"].lower() == "true",
+                    "type": row["transactions.type"],
+                    "vendor": row["transactions.vendor"],
+                }
+
+                key = (row["UserId"], row["YearMonth"])
+                if key not in grouped_items:
+                    grouped_items[key] = []
+                grouped_items[key].append(transaction)
+
+        # Prepare items for DynamoDB
+        dynamo_data = []
+        for (user_id, year_month), transactions in grouped_items.items():
+            dynamo_data.append({
+                "UserId": user_id,  # String directly
+                "YearMonth": year_month,  # String directly
+                "transactions": transactions  # List of dictionaries
+            })
+
+        print("Successfully formatted new transactions for DynamoDB.")
+        return dynamo_data
+
+    except Exception as e:
+        print(f"Error loading new transactions: {str(e)}")
+        return []
 
 def lambda_handler(event, context):
     try:
@@ -447,12 +488,11 @@ def lambda_handler(event, context):
 
         local_csv_path = f"/tmp/{file_key.split('/')[-1]}"
         s3_client.download_file(ingest_bucket, file_key, local_csv_path)
-
+        dynamo_data = process_csv(local_csv_path)
 
         new_data = load_new_transactions(local_csv_path)
 
         for (user_id, year_month), current_transactions in new_data.items():
-
             historical_data = query_historical_data(user_id)
             all_transactions = historical_data + current_transactions
             home_country = determine_home_country(historical_data)
@@ -496,36 +536,20 @@ def lambda_handler(event, context):
             pdf_path = generate_pdf_report(user_id, year_month, pie_chart_path, trend_chart_path, recurring_graph_path, high_value_transaction, flagged_transactions)
             
             
-            upload_to_s3(report_file, "cpsc436c-g9-customer-reports", report_s3_key)
+            #upload_to_s3(report_file, "cpsc436c-g9-customer-reports", report_s3_key)
             # upload_to_s3(pie_chart_path, "cpsc436c-g9-customer-reports", pie_chart_s3_key)
             upload_to_s3(pdf_path, "cpsc436c-g9-customer-reports", pdf_s3_key)
             # upload_to_s3(trend_chart_path, "cpsc436c-g9-customer-reports", trend_chart_s3_key)
+       ####### Uplodad to Dynamo  #######
+        for item in dynamo_data:
+            table.put_item(Item=item)
 
-
+        
+        s3_client.delete_object(Bucket=ingest_bucket, Key=file_key)
+        print(f"Deleted processed file: {file_key} from bucket: {ingest_bucket}")
         return {"statusCode": 200, "body": "Processing complete!"}
         
     except Exception as e:
         print(f"Error in lambda_handler: {str(e)}")
         return {"statusCode": 500, "body": "An error occurred."}
-    
-    
-    
-### TODO: delete the statements from the ingest bucket 
-## TODO: push the new data from the new statements to the table
- ################# UPLOAD NEW STSTEMENT  TO DYNAMO <Has to be modified>################     
-# def upload_to_dynamodb(items):
-#     try:
-#         print("Trying upload")
-#         for item in items:
-#             response = table.put_item(Item=item)
-#         print("Successfully inserted all rows")
-        
-#     except ClientError as e:
-#         print(f"Error inserting item into DynamoDB: {e.response['Error']['Message']}")
-#     except Exception as e:
-#         print(f"An unexpected error occurred: {str(e)}")
-        
-# transaction_rows = process_csv('user1data.csv')
-# upload_to_dynamodb(transaction_rows)
- #################  ################     
 
