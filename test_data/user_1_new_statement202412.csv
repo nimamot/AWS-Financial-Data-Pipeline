@@ -1,0 +1,13 @@
+UserId,YearMonth,transactions.id,transactions.date,transactions.vendor,transactions.category,transactions.amount,transactions.currency,transactions.recurring,transactions.type,transactions.location,transactions.description
+1,202412,1001,2024-12-01,Gym Membership,Health & Wellness,55,USD,true,subscription,US-CA,Monthly gym membership fee
+1,202412,1002,2024-12-02,Netflix,Entertainment,13.99,USD,true,subscription,US-NY,Netflix monthly subscription
+1,202412,1003,2024-12-03,Spotify,Entertainment,9.99,USD,true,subscription,US-NY,Spotify Premium subscription
+1,202412,1004,2024-12-04,Apple.com/Bill,Shopping,3.35,USD,true,subscription,US-CA,Apple recurring subscription
+1,202412,1005,2024-12-05,Walmart,Groceries,75,USD,false,purchase,US-CA,Monthly groceries
+1,202412,1006,2024-12-06,Amazon,Shopping,120,USD,false,purchase,US-CA,Holiday shopping
+1,202412,1007,2024-12-07,Starbucks,Food & Beverages,20,USD,false,purchase,US-CA,Weekly coffee run
+1,202412,1008,2024-12-08,Whole Foods,Groceries,45,USD,false,purchase,US-CA,Organic produce
+1,202412,1009,2024-12-09,Amazon,Shopping,50,USD,false,purchase,US-NY,Electronics purchase
+1,202412,1010,2024-12-10,Target,Groceries,40,USD,false,purchase,US-CA,Household essentials
+1,202412,1011,2024-12-11,Cinema City,Entertainment,18.5,USD,false,purchase,US-CA,Movie night
+1,202412,1012,2024-12-12,Amazon,Shopping,75,USD,false,purchase,DZ-ALG,Gift shopping

@@ -1,0 +1,13 @@
+UserId,YearMonth,transactions.id,transactions.date,transactions.vendor,transactions.category,transactions.amount,transactions.currency,transactions.recurring,transactions.type,transactions.location,transactions.description
+2,202412,2001,2024-12-01,Cineplex,Entertainment,10.49,CAD,true,subscription,CA-BC,Monthly movie subscription
+2,202412,2002,2024-12-02,Revenue Services,Health & Wellness,75,CAD,true,purchase,CA-BC,Monthly health premium
+2,202412,2003,2024-12-03,Fido Mobile,Shopping,50.4,CAD,true,purchase,CA-BC,Monthly phone bill
+2,202412,2004,2024-12-04,Apple.com/Bill,Shopping,3.35,CAD,true,subscription,CA-BC,Apple recurring subscription
+2,202412,2005,2024-12-05,Walmart,Groceries,50,CAD,false,purchase,CA-BC,Grocery shopping
+2,202412,2006,2024-12-06,Amazon,Shopping,90,CAD,false,purchase,CA-BC,Online shopping
+2,202412,2007,2024-12-07,Starbucks,Food & Beverages,15,CAD,false,purchase,CA-BC,Daily coffee
+2,202412,2008,2024-12-08,Amazon,Shopping,80,CAD,false,purchase,CA-BC,Kitchen appliances
+2,202412,2009,2024-12-09,Best Buy,Shopping,150,CAD,false,purchase,FR-IDF,Expensive gadget purchase
+2,202412,2010,2024-12-10,Uber Eats,Food & Beverages,30,CAD,false,purchase,CA-BC,Delivery food
+2,202412,2011,2024-12-11,Whole Foods,Groceries,45,CAD,false,purchase,CA-BC,Organic grocery
+2,202412,2012,2024-12-12,Cinema City,Entertainment,15,CAD,false,purchase,CA-BC,Movie night
