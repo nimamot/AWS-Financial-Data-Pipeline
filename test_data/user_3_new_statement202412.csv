@@ -1,0 +1,13 @@
+UserId,YearMonth,transactions.id,transactions.date,transactions.vendor,transactions.category,transactions.amount,transactions.currency,transactions.recurring,transactions.type,transactions.location,transactions.description
+3,202412,3001,2024-12-01,Apple.com/Bill,Shopping,3.35,CAD,true,subscription,CA-BC,Apple recurring subscription
+3,202412,3002,2024-12-02,Gym Membership,Health & Wellness,60,CAD,true,subscription,CA-BC,Monthly gym membership fee
+3,202412,3003,2024-12-03,Spotify,Entertainment,12.99,CAD,true,subscription,CA-BC,Music subscription
+3,202412,3004,2024-12-04,Walmart,Groceries,50,CAD,false,purchase,CA-BC,Weekly groceries
+3,202412,3005,2024-12-05,Amazon,Shopping,100,CAD,false,purchase,CA-BC,Online purchase
+3,202412,3006,2024-12-06,Starbucks,Food & Beverages,18,CAD,false,purchase,US-CA,Daily coffee
+3,202412,3007,2024-12-07,Netflix,Entertainment,15.99,CAD,true,subscription,CA-BC,Streaming service
+3,202412,3008,2024-12-08,Amazon,Shopping,200,CAD,false,purchase,CA-BC,Holiday gifts
+3,202412,3009,2024-12-09,Whole Foods,Groceries,65,CAD,false,purchase,CA-BC,Organic grocery
+3,202412,3010,2024-12-10,Target,Shopping,40,CAD,false,purchase,CA-BC,Home essentials
+3,202412,3011,2024-12-11,Uber Eats,Food & Beverages,25,CAD,false,purchase,CA-BC,Food delivery
+3,202412,3012,2024-12-12,Best Buy,Shopping,250,USD,false,purchase,DZ-ALG,High-value purchase

@@ -1,0 +1,6 @@
+matplotlib
+boto3
+reportlab
+pycountry
+fpdf
+numpy
