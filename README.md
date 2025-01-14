@@ -18,9 +18,3 @@ This project automates the analysis of financial statements by leveraging AWS cl
 2. **Trigger:** The upload triggers an AWS Lambda function that processes the data.
 3. **Analysis and Reporting:** The system processes transactions, performs analysis, and generates a PDF report saved to the S3 reports bucket (`cpsc436c-g9-customer-reports`).
 4. **Cleanup:** The ingestion bucket is emptied, and DynamoDB is updated with the new data.
-
-## Testing the System
-- **Sample Data:** Use the sample CSV files available in the `test_data` directory to test the pipeline.
-- **Process Flow:** Upload a sample file to the ingestion bucket to trigger the pipeline. The resulting reports can be found in the reports bucket.
-- **Data Management:** Processed statements are cleared from the ingestion bucket, and new transactions are stored in DynamoDB.
-
