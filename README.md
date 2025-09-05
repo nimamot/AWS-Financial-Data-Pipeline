@@ -1,9 +1,11 @@
 # Automated Financial Statement Analysis
 <img width="1595" height="674" alt="Screenshot 2025-09-04 at 5 07 16 PM" src="https://github.com/user-attachments/assets/8d72843f-9415-4806-87a6-f13152aba5e4" />
-## Demo:
-https://youtu.be/qQftj19BvmA
+
 ## Project Overview
 This project automates the analysis of financial statements by leveraging AWS cloud services. It enables seamless ingestion, processing, and reporting of user-uploaded financial data. The pipeline is built using AWS Lambda, S3, and DynamoDB, providing a scalable solution for financial data analysis.
+
+## Demo:
+https://youtu.be/qQftj19BvmA
 
 ## Features
 - **Data Ingestion:** Upload user statements in CSV format to the designated S3 ingestion bucket.
