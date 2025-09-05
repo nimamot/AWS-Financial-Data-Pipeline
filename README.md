@@ -20,5 +20,4 @@ This project automates the analysis of financial statements by leveraging AWS cl
 4. **Cleanup:** The ingestion bucket is emptied, and DynamoDB is updated with the new data.
 
 ## Demo:
-
-[https://youtu.be/qQftj19BvmA](url)
+https://youtu.be/qQftj19BvmA
